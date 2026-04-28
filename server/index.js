@@ -6,6 +6,12 @@ const connectDB = require('./config/db');
 const { initSocket } = require('./sockets');
 const errorHandler = require('./middleware/errorHandler');
 
+if (!process.env.JWT_SECRET) {
+  console.error('❌ Missing JWT_SECRET environment variable.');
+  console.error('Please create a .env file from .env.example and set JWT_SECRET.');
+  process.exit(1);
+}
+
 const app = express();
 const server = http.createServer(app);
 
