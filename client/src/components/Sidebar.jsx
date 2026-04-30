@@ -9,7 +9,9 @@ export default function Sidebar() {
 
   const NAV_ITEMS = [
     { label: 'Home', path: '/', icon: '🏠' },
-    { label: 'Restaurants', path: '/restaurants', icon: '🔍' },
+    { label: 'Delivery', path: '/delivery', icon: '🚚' },
+    { label: 'Dine-Out', path: '/dineout', icon: '🍽️' },
+    { label: 'Events', path: '/events', icon: '🎉' },
     { label: 'Orders', path: '/orders', icon: '📋' },
     { label: 'Cart', path: '/cart', icon: '🛒', role: 'customer' },
     { label: 'Profile', path: '/profile', icon: '👤' },

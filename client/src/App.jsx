@@ -9,8 +9,13 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Delivery from './pages/Delivery';
 import RestaurantList from './pages/RestaurantList';
 import RestaurantDetail from './pages/RestaurantDetail';
+import DineOut from './pages/DineOut';
+import DineOutDetail from './pages/DineOutDetail';
+import Events from './pages/Events';
+import EventDetail from './pages/EventDetail';
 import Cart from './pages/Cart';
 import Orders from './pages/Orders';
 import OrderDetail from './pages/OrderDetail';
@@ -34,8 +39,19 @@ export default function App() {
 
       <Route element={<Layout />}>
         <Route path="/" element={<Home />} />
+        
+        {/* Delivery Routes */}
+        <Route path="/delivery" element={<Delivery />} />
         <Route path="/restaurants" element={<RestaurantList />} />
         <Route path="/restaurants/:id" element={<RestaurantDetail />} />
+
+        {/* Dine-Out Routes */}
+        <Route path="/dineout" element={<DineOut />} />
+        <Route path="/dineout/:id" element={<DineOutDetail />} />
+
+        {/* Events Routes */}
+        <Route path="/events" element={<Events />} />
+        <Route path="/events/:id" element={<EventDetail />} />
 
         <Route element={<ProtectedRoute />}>
           <Route path="/cart" element={<Cart />} />

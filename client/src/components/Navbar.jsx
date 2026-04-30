@@ -18,8 +18,8 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
         <div className="flex justify-between items-center">
           <Link to="/" className="flex items-center gap-2 text-2xl font-black text-orange-500 tracking-tighter shrink-0">
-            <span className="bg-orange-500 text-white p-1.5 rounded-lg">🍔</span>
-            <span className="hidden sm:inline">FoodHub</span>
+            <span className="bg-orange-500 text-white p-1.5 rounded-lg">�</span>
+            <span className="hidden sm:inline">DineHub</span>
           </Link>
 
           {/* Search Bar - Desktop */}
@@ -38,7 +38,7 @@ export default function Navbar() {
 
           <div className="flex items-center gap-2 sm:gap-6">
             <div className="hidden lg:flex items-center gap-6 mr-2">
-              <Link to="/restaurants" className="text-gray-600 font-bold hover:text-orange-500 transition-colors text-sm">Explore</Link>
+              <Link to="/delivery" className="text-gray-600 font-bold hover:text-orange-500 transition-colors text-sm">Explore</Link>
               {user?.role === 'restaurant_owner' && (
                 <Link to="/merchant" className="text-gray-600 font-bold hover:text-orange-500 transition-colors text-sm">Merchant</Link>
               )}
