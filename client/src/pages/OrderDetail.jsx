@@ -6,6 +6,7 @@ import { getSocket } from '../lib/socket';
 import toast from 'react-hot-toast';
 import Button from '../components/Button';
 import Modal from '../components/Modal';
+import PaymentBadge from '../components/PaymentBadge';
 
 const STEPS = [
   { status: 'PLACED', label: 'Order Placed', icon: '📝' },
@@ -261,6 +262,9 @@ export default function OrderDetail() {
                     <p className="text-gray-700 font-bold leading-relaxed">{order.deliveryAddress}</p>
                   </div>
                 </div>
+
+                {/* Payment Badge */}
+                <PaymentBadge orderId={order._id} />
 
                 {order.courier && (
                   <div className="flex items-start gap-4 p-4 bg-orange-50 rounded-2xl border border-orange-100">

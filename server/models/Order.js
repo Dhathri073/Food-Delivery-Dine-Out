@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const ORDER_STATES = ['PLACED', 'ACCEPTED', 'PREPARING', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'];
+const ORDER_STATES = ['PENDING_PAYMENT', 'PLACED', 'ACCEPTED', 'PREPARING', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'];
 
 const orderItemSchema = new mongoose.Schema({
   menuItemId: mongoose.Schema.Types.ObjectId,
@@ -15,14 +15,19 @@ const orderSchema = new mongoose.Schema({
   restaurantName: String,
   courier: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   items: [orderItemSchema],
-  status: { type: String, enum: ORDER_STATES, default: 'PLACED' },
+  status: { type: String, enum: ORDER_STATES, default: 'PENDING_PAYMENT' },
   totalAmount: { type: Number, required: true },
   deliveryFee: { type: Number, default: 2.99 },
+  taxes: { type: Number, default: 0 },
+  grandTotal: { type: Number, required: true },
   deliveryAddress: { type: String, required: true },
   deliveryLocation: {
     type: { type: String, enum: ['Point'], default: 'Point' },
     coordinates: [Number]
   },
+  paymentMethod: { type: String, enum: ['card', 'cod'], default: 'cod' },
+  paymentStatus: { type: String, enum: ['pending', 'paid', 'failed', 'refunded'], default: 'pending' },
+  payment: { type: mongoose.Schema.Types.ObjectId, ref: 'Payment', default: null },
   statusHistory: [{
     status: String,
     timestamp: { type: Date, default: Date.now },

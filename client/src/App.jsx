@@ -1,7 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useEffect } from 'react';
 import useAuthStore from './store/authStore';
-import { connectSocket } from './lib/socket';
+import { useAuthInit } from './hooks/useAuthInit';
 
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -24,13 +23,13 @@ import Profile from './pages/Profile';
 // Role dashboards
 import MerchantDashboard from './pages/merchant/Dashboard';
 import CourierDashboard from './pages/courier/Dashboard';
+import Checkout from './pages/Checkout';
 
 export default function App() {
   const { token, user } = useAuthStore();
-
-  useEffect(() => {
-    if (token) connectSocket(token);
-  }, [token]);
+  
+  // Initialize auth on mount
+  useAuthInit();
 
   return (
     <Routes>
@@ -55,6 +54,7 @@ export default function App() {
 
         <Route element={<ProtectedRoute />}>
           <Route path="/cart" element={<Cart />} />
+          <Route path="/checkout" element={<Checkout />} />
           <Route path="/orders" element={<Orders />} />
           <Route path="/orders/:id" element={<OrderDetail />} />
           <Route path="/profile" element={<Profile />} />

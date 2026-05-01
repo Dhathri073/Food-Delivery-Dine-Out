@@ -1,14 +1,9 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useCartStore from '../store/cartStore';
-import api from '../lib/api';
-import toast from 'react-hot-toast';
 import Button from '../components/Button';
 
 export default function Cart() {
   const { cart, updateItem, clearCart } = useCartStore();
-  const [address, setAddress] = useState('');
-  const [isOrdering, setIsOrdering] = useState(false);
   const navigate = useNavigate();
 
   if (!cart || cart.items?.length === 0) {
@@ -26,25 +21,8 @@ export default function Cart() {
     );
   }
 
-  const handleOrder = async () => {
-    if (!address.trim()) { 
-      toast.error('Please enter a delivery address'); 
-      return; 
-    }
-    setIsOrdering(true);
-    try {
-      const data = await api.post('/orders', {
-        deliveryAddress: address,
-        deliveryLocation: { type: 'Point', coordinates: [0, 0] }
-      });
-      toast.success('Order placed successfully!');
-      clearCart();
-      navigate(`/orders/${data.order._id}`);
-    } catch (err) {
-      toast.error(err.message || 'Failed to place order');
-    } finally {
-      setIsOrdering(false);
-    }
+  const handleOrder = () => {
+    navigate('/checkout');
   };
 
   const deliveryFee = 2.99;
@@ -106,21 +84,11 @@ export default function Cart() {
               ))}
             </div>
 
-            {/* Delivery Address Section */}
-            <div className="mt-8">
-              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center text-xl">📍</div>
-                  <h3 className="text-lg font-black text-gray-900">Delivery Address</h3>
-                </div>
-                <textarea 
-                  className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl p-4 focus:ring-2 focus:ring-orange-500 focus:bg-white transition-all outline-none resize-none" 
-                  rows={3} 
-                  placeholder="Street name, Apartment, Landmark..."
-                  value={address} 
-                  onChange={e => setAddress(e.target.value)} 
-                />
-              </div>
+            <div className="mt-6 bg-orange-50 border border-orange-100 rounded-2xl p-4 flex items-center gap-3">
+              <span className="text-xl">🔒</span>
+              <p className="text-sm text-orange-800 font-medium">
+                Enter your delivery address and payment details on the next step.
+              </p>
             </div>
           </div>
 
@@ -161,11 +129,10 @@ export default function Cart() {
                 
                 <Button 
                   onClick={handleOrder} 
-                  loading={isOrdering} 
                   fullWidth 
                   className="py-4 text-lg"
                 >
-                  Place Order
+                  Proceed to Checkout →
                 </Button>
               </div>
             </div>
@@ -185,7 +152,7 @@ export default function Cart() {
             loading={isOrdering} 
             className="flex-1"
           >
-            Place Order
+            Proceed to Checkout →
           </Button>
         </div>
       </div>
