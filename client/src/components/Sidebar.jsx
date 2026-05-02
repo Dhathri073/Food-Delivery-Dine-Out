@@ -5,6 +5,9 @@ export default function Sidebar() {
   const { user, token } = useAuthStore();
   const location = useLocation();
 
+  // Owner and courier have their own dedicated layouts — no sidebar needed
+  if (user?.role === 'restaurant_owner' || user?.role === 'courier') return null;
+
   const isActive = (path) => location.pathname === path;
 
   const NAV_ITEMS = [

@@ -11,10 +11,11 @@ export default function Layout() {
   const location = useLocation();
 
   useEffect(() => {
-    if (token) fetchCart();
+    if (token && user?.role === 'customer') fetchCart();
   }, [token]);
 
   const isActive = (path) => location.pathname === path;
+  const isRoleDashboard = user?.role === 'restaurant_owner' || user?.role === 'courier';
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50/50">
@@ -30,7 +31,8 @@ export default function Layout() {
         </main>
       </div>
 
-      {/* Mobile Bottom Navigation - Zomato Style */}
+      {/* Mobile Bottom Navigation - customers only */}
+      {!isRoleDashboard && (
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-gray-100 px-6 py-3 flex justify-between items-center z-[60] shadow-[0_-8px_30px_rgb(0,0,0,0.04)]">
         <Link to="/" className={`flex flex-col items-center gap-1 transition-all ${isActive('/') ? 'text-orange-500 scale-110' : 'text-gray-400'}`}>
           <span className="text-2xl">{isActive('/') ? '🏠' : '🏠'}</span>
@@ -49,6 +51,7 @@ export default function Layout() {
           <span className="text-[10px] font-black uppercase tracking-widest">Account</span>
         </Link>
       </nav>
+      )}
 
       <footer className="hidden md:block bg-gray-900 text-gray-400 py-12">
         <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-8">
