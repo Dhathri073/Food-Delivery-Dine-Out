@@ -15,12 +15,14 @@ const useAuthStore = create(
         try {
           const data = await api.post('/auth/login', { email, password });
           localStorage.setItem('token', data.token);
-          connectSocket(data.token);
+          try { connectSocket(data.token); } catch (_) {}
           set({ user: data.user, token: data.token, isLoading: false });
           return data;
         } catch (err) {
           set({ isLoading: false });
-          throw err;
+          // Normalize error message
+          const msg = err?.message || err?.response?.data?.message || 'Login failed. Please try again.';
+          throw new Error(msg);
         }
       },
 
@@ -29,18 +31,19 @@ const useAuthStore = create(
         try {
           const data = await api.post('/auth/register', { name, email, password, role });
           localStorage.setItem('token', data.token);
-          connectSocket(data.token);
+          try { connectSocket(data.token); } catch (_) {}
           set({ user: data.user, token: data.token, isLoading: false });
           return data;
         } catch (err) {
           set({ isLoading: false });
-          throw err;
+          const msg = err?.message || err?.response?.data?.message || 'Registration failed. Please try again.';
+          throw new Error(msg);
         }
       },
 
       logout: () => {
         localStorage.removeItem('token');
-        disconnectSocket();
+        try { disconnectSocket(); } catch (_) {}
         set({ user: null, token: null });
       },
 
@@ -48,10 +51,15 @@ const useAuthStore = create(
         try {
           const data = await api.get('/auth/me');
           set({ user: data.user });
-        } catch { get().logout(); }
+        } catch {
+          get().logout();
+        }
       }
     }),
-    { name: 'auth-store', partialize: (s) => ({ token: s.token, user: s.user }) }
+    {
+      name: 'foodhub-auth',
+      partialize: (s) => ({ token: s.token, user: s.user })
+    }
   )
 );
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import useAuthStore from '../store/authStore';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
@@ -8,6 +8,16 @@ export default function Profile() {
   const { user, refreshUser } = useAuthStore();
   const [form, setForm] = useState({ name: user?.name || '', phone: user?.phone || '' });
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    refreshUser().catch(err => console.error('Failed to refresh user:', err));
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      setForm({ name: user.name || '', phone: user.phone || '' });
+    }
+  }, [user]);
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -51,7 +61,7 @@ export default function Profile() {
             <h2 className="text-2xl font-black text-gray-900 mb-1">{user?.name}</h2>
             <p className="text-gray-400 font-bold text-sm uppercase tracking-widest mb-6">{user?.email}</p>
             
-            <div className="inline-block px-4 py-1.5 rounded-full border text-[10px] font-black uppercase tracking-widest mb-8 ${roleColors[user?.role] || 'bg-gray-50 text-gray-600 border-gray-100'}">
+            <div className={`inline-block px-4 py-1.5 rounded-full border text-[10px] font-black uppercase tracking-widest mb-8 ${roleColors[user?.role] || 'bg-gray-50 text-gray-600 border-gray-100'}`}>
               {user?.role?.replace('_', ' ')}
             </div>
 

@@ -8,6 +8,9 @@ export default function Navbar() {
   const navigate = useNavigate();
   const count = itemCount();
 
+  // Owner and courier have their own dedicated layout headers
+  if (user?.role === 'restaurant_owner' || user?.role === 'courier') return null;
+
   const handleLogout = () => {
     logout();
     navigate('/login');
