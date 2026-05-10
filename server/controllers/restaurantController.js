@@ -2,8 +2,13 @@ const Restaurant = require('../models/Restaurant');
 
 exports.getNearby = async (req, res, next) => {
   try {
-    const { lat, lng, radius = 10000, limit = 20 } = req.query;
+    const { lat, lng, radius = 10000, limit = 20, cuisine } = req.query;
     if (!lat || !lng) return res.status(400).json({ message: 'lat and lng are required' });
+
+    const query = { isOpen: true };
+    if (cuisine && cuisine.trim()) {
+      query.cuisine = { $in: [cuisine] };
+    }
 
     const restaurants = await Restaurant.aggregate([
       {
@@ -12,7 +17,7 @@ exports.getNearby = async (req, res, next) => {
           distanceField: 'distance',
           maxDistance: parseInt(radius),
           spherical: true,
-          query: { isOpen: true }
+          query: query
         }
       },
       { $sort: { distance: 1, rating: -1 } },

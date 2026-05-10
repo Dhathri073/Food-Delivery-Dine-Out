@@ -128,10 +128,14 @@ export default function Home() {
                     type="text" 
                     placeholder="Enter delivery address..." 
                     className="w-full pl-12 pr-4 py-5 rounded-2xl border-none shadow-xl focus:ring-2 focus:ring-orange-500 text-lg font-medium"
+                    disabled
                   />
                 </div>
-                <button className="bg-orange-500 text-white font-black py-5 px-10 rounded-2xl shadow-xl shadow-orange-200 hover:bg-orange-600 transition-all active:scale-95 text-lg">
-                  Find Food
+                <button
+                  onClick={() => navigate('/restaurants?near=1')}
+                  className="bg-orange-500 text-white font-black py-5 px-10 rounded-2xl shadow-xl shadow-orange-200 hover:bg-orange-600 transition-all active:scale-95 text-lg"
+                >
+                  Find Nearby Food
                 </button>
               </div>
             </div>
@@ -143,7 +147,11 @@ export default function Home() {
               <h2 className="text-2xl font-black mb-8">What's on your mind?</h2>
               <div className="flex gap-8 overflow-x-auto pb-4 no-scrollbar">
                 {CATEGORIES.map(cat => (
-                  <button key={cat.name} className="flex flex-col items-center gap-3 group shrink-0">
+                  <button 
+                    key={cat.name} 
+                    onClick={() => navigate(`/restaurants?cuisine=${encodeURIComponent(cat.name)}&near=1`)}
+                    className="flex flex-col items-center gap-3 group shrink-0 cursor-pointer"
+                  >
                     <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gray-50 rounded-full flex items-center justify-center text-4xl group-hover:bg-orange-50 group-hover:scale-110 transition-all duration-300">
                       {cat.icon}
                     </div>
@@ -161,7 +169,7 @@ export default function Home() {
                 <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-3">Featured for You</h2>
                 <div className="h-1.5 w-20 bg-orange-500 rounded-full"></div>
               </div>
-              <Link to="/delivery" className="group flex items-center gap-2 text-orange-500 font-bold hover:text-orange-600 transition-colors">
+              <Link to="/restaurants" className="group flex items-center gap-2 text-orange-500 font-bold hover:text-orange-600 transition-colors">
                 Explore more <span className="group-hover:translate-x-1 transition-transform">→</span>
               </Link>
             </div>

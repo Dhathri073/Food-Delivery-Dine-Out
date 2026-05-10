@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+﻿import { useState, useEffect } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import api from '../lib/api';
 import Button from '../components/Button';
@@ -7,15 +7,28 @@ import RestaurantCard from '../components/RestaurantCard';
 import { RestaurantCardSkeleton } from '../components/Skeleton';
 
 export default function RestaurantList() {
+  const [searchParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [coords, setCoords] = useState(null);
-  const [locationStatus, setLocationStatus] = useState('idle'); // idle | requesting | granted | denied
+  const [locationStatus, setLocationStatus] = useState('idle');
+
+  const cuisineFilter = searchParams.get('cuisine');
+  const nearParam = searchParams.get('near');
+  const isNearSearch = nearParam === '1' || nearParam === 'true';
 
   useEffect(() => {
     if (!navigator.geolocation) {
+      setCoords(null);
       setLocationStatus('denied');
       return;
     }
+
+    if (!isNearSearch) {
+      setCoords(null);
+      setLocationStatus('denied');
+      return;
+    }
+
     setLocationStatus('requesting');
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -23,25 +36,31 @@ export default function RestaurantList() {
         setLocationStatus('granted');
       },
       () => {
+        setCoords(null);
         setLocationStatus('denied');
       },
       { timeout: 8000 }
     );
-  }, []);
+  }, [isNearSearch]);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['restaurants', search, coords],
+    queryKey: ['restaurants', search, coords, cuisineFilter, isNearSearch],
     queryFn: async () => {
+      const cuisineParam = encodeURIComponent(cuisineFilter || '');
       if (coords) {
-        const nearby = await api.get(`/restaurants/nearby?lat=${coords.lat}&lng=${coords.lng}&radius=20000`);
-        if (!search && nearby.restaurants.length === 0) {
-          return api.get('/restaurants');
+        const nearby = await api.get(
+          `/restaurants/nearby?lat=${coords.lat}&lng=${coords.lng}&radius=20000${cuisineParam ? `&cuisine=${cuisineParam}` : ''}`
+        );
+        if (nearby.restaurants.length > 0) {
+          return { ...nearby, isNearby: true };
         }
-        return nearby;
+        const fallback = await api.get(`/restaurants?cuisine=${cuisineParam}`);
+        return { ...fallback, isNearby: false };
       }
-      return api.get(`/restaurants?search=${search}`);
+
+      return api.get(`/restaurants?cuisine=${cuisineParam}&search=${encodeURIComponent(search)}`);
     },
-    enabled: locationStatus !== 'requesting'
+    enabled: !isNearSearch || locationStatus !== 'requesting'
   });
 
   const handleRetryLocation = () => {
@@ -62,24 +81,31 @@ export default function RestaurantList() {
   };
 
   const restaurants = data?.restaurants || [];
+  const showFallbackNearby = coords && data?.isNearby === false && isNearSearch;
+  const pageTitle = cuisineFilter ? `${cuisineFilter} Restaurants` : 'Explore Restaurants';
 
   return (
     <div className="bg-gray-50/30 min-h-screen">
       <div className="max-w-7xl mx-auto px-4 py-12">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-12">
           <div>
-            <h1 className="text-4xl font-black text-gray-900 mb-2">Explore Restaurants</h1>
-            <p className="text-gray-500 font-medium">Discover the best food near you</p>
+            <h1 className="text-4xl font-black text-gray-900 mb-2">{pageTitle}</h1>
+            <p className="text-gray-500 font-medium">
+              {cuisineFilter ? `Discover the best ${cuisineFilter.toLowerCase()} restaurants near you` : 'Discover the best food near you'}
+            </p>
           </div>
           {locationStatus === 'granted' && coords && (
-            <div className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-2xl text-sm font-bold border border-green-100">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-2xl text-sm font-bold border border-green-100">
               <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-              Showing restaurants near your location
+              <span>
+                {showFallbackNearby
+                  ? 'No nearby restaurants found within 20km. Showing all matching restaurants instead.'
+                  : 'Showing nearby restaurants.'}
+              </span>
             </div>
           )}
         </div>
 
-        {/* Location banner */}
         {locationStatus === 'requesting' && (
           <div className="mb-8 p-6 bg-white border border-blue-100 rounded-3xl shadow-sm flex items-center gap-4 animate-pulse">
             <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-2xl">🔄</div>
@@ -95,80 +121,72 @@ export default function RestaurantList() {
             <div className="flex items-center gap-4 text-center sm:text-left">
               <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-2xl">📍</div>
               <div>
-                <p className="font-black text-gray-900">Location access denied</p>
+                <p className="font-black text-gray-900">Location access disabled</p>
                 <p className="text-sm text-gray-500 font-medium">Enable location to find nearby restaurants, or search by name below.</p>
               </div>
             </div>
-            <Button variant="secondary" onClick={handleRetryLocation} className="shrink-0">
-              Try Again
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button onClick={handleRetryLocation} variant="primary" size="sm">
+                Enable Location
+              </Button>
+              <Button onClick={handleShowAll} variant="secondary" size="sm">
+                Show All
+              </Button>
+            </div>
+            {isNearSearch && locationStatus === 'denied' && (
+              <p className="mt-4 text-sm text-gray-500 max-w-xl">
+                If you do not see a browser prompt, enable location permissions for this site in your browser settings and retry.
+                Otherwise, use Show All to browse restaurants without GPS.
+              </p>
+            )}
           </div>
         )}
 
-        {/* Search & Filter bar */}
-        <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-xl shadow-gray-200/40 mb-12">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1 relative">
-              <span className="absolute inset-y-0 left-4 flex items-center text-xl">🔍</span>
-              <input
-                type="text"
-                className="w-full pl-12 pr-4 py-4 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-orange-500 font-medium transition-all"
-                placeholder="Search by restaurant name or cuisine..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-              />
-            </div>
-            {locationStatus === 'granted' ? (
-              <Button variant="secondary" onClick={handleShowAll} className="flex items-center gap-2">
-                <span>🗺️</span> Show All
-              </Button>
-            ) : (
-              <Button onClick={handleRetryLocation} className="flex items-center gap-2">
-                <span>📍</span> Use My Location
-              </Button>
-            )}
-          </div>
+        <div className="mb-12">
+          <input
+            type="text"
+            placeholder={cuisineFilter ? `Search ${cuisineFilter} restaurants...` : 'Search restaurants...'}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full px-6 py-4 rounded-2xl border border-gray-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 text-lg font-medium"
+          />
         </div>
 
-        {/* Loading skeletons */}
-        {(isLoading || locationStatus === 'requesting') ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[...Array(6)].map((_, i) => (
-              <RestaurantCardSkeleton key={i} />
-            ))}
-          </div>
-        ) : error ? (
-          <div className="bg-white rounded-[40px] p-16 text-center border border-gray-100 shadow-sm">
-            <div className="text-6xl mb-6">⚠️</div>
-            <h3 className="text-2xl font-black text-gray-900 mb-2">Could not load restaurants</h3>
-            <p className="text-gray-500 font-medium mb-8">Something went wrong while fetching the data. Please try again later.</p>
-            <Button onClick={() => window.location.reload()}>Retry Now</Button>
-          </div>
-        ) : restaurants.length === 0 ? (
-          <div className="bg-white rounded-[40px] p-16 text-center border border-gray-100 shadow-sm">
-            <div className="text-6xl mb-6">🍽️</div>
-            <h3 className="text-2xl font-black text-gray-900 mb-2">No restaurants found</h3>
-            {locationStatus === 'granted' ? (
-              <>
-                <p className="text-gray-500 font-medium mb-8">We couldn't find any nearby restaurants. Try exploring all restaurants instead.</p>
-                <Button onClick={handleShowAll}>Show All Restaurants</Button>
-              </>
-            ) : (
-              <p className="text-gray-500 font-medium">Try searching for something else or enable location access.</p>
-            )}
-          </div>
-        ) : (
-          <div>
-            <div className="flex items-center justify-between mb-8">
-              <p className="text-sm font-black text-gray-400 uppercase tracking-widest">
-                {restaurants.length} restaurant{restaurants.length !== 1 ? 's' : ''} found
-              </p>
-            </div>
+        <div>
+          {isLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-              {restaurants.map(r => <RestaurantCard key={r._id} r={r} />)}
+              {Array(6).fill(0).map((_, i) => (
+                <RestaurantCardSkeleton key={i} />
+              ))}
             </div>
-          </div>
-        )}
+          ) : error ? (
+            <div className="bg-white rounded-[40px] p-16 text-center border border-gray-100 shadow-sm">
+              <div className="text-6xl mb-6">⚠️</div>
+              <h3 className="text-2xl font-black text-gray-900 mb-2">Could not load restaurants</h3>
+              <p className="text-gray-500 font-medium mb-8">Something went wrong while fetching the data. Please try again later.</p>
+              <Button onClick={() => window.location.reload()}>Retry Now</Button>
+            </div>
+          ) : restaurants.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+              {restaurants.map((r) => (
+                <RestaurantCard key={r._id} r={r} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-16">
+              <div className="text-6xl mb-4">🍽️</div>
+              <h3 className="text-2xl font-black text-gray-900 mb-2">No restaurants found</h3>
+              <p className="text-gray-500 font-medium mb-8">
+                {search
+                  ? 'Try searching with different keywords.'
+                  : 'Try enabling location or searching for a restaurant.'}
+              </p>
+              <Link to="/" className="inline-block px-6 py-3 bg-orange-500 text-white font-bold rounded-2xl hover:bg-orange-600 transition-all">
+                Back to Home
+              </Link>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

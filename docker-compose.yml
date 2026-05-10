@@ -1,22 +1,42 @@
 version: '3.8'
 
 services:
+  mongodb:
+    image: mongo:7.0
+    container_name: food-delivery-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=password
+      - MONGO_INITDB_DATABASE=foodhub
+    volumes:
+      - mongodb_data:/data/db
+
   server:
     build: ./server
+    container_name: food-delivery-server
     ports:
       - "5000:5000"
     environment:
-      - MONGO_URI=${MONGO_URI}
-      - JWT_SECRET=${JWT_SECRET}
+      - MONGO_URI=mongodb://admin:password@mongodb:27017/foodhub?authSource=admin
+      - JWT_SECRET=${JWT_SECRET:-your-secret-key-here}
       - JWT_EXPIRES_IN=7d
       - CLIENT_URL=http://localhost
       - NODE_ENV=production
+    depends_on:
+      - mongodb
     restart: unless-stopped
 
   client:
     build: ./client
+    container_name: food-delivery-client
     ports:
       - "80:80"
     depends_on:
       - server
     restart: unless-stopped
+
+volumes:
+  mongodb_data:
