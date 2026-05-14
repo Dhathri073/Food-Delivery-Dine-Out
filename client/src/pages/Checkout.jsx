@@ -57,11 +57,15 @@ function CheckoutForm({ cart, address, setAddress, grandTotal, deliveryFee, taxe
       // ── COD: done ──────────────────────────────────────────────────────
       if (paymentMethod === 'cod') {
         setIsOrdered(true);
-        // Navigate first, then clear cart to avoid race condition
         const orderId = data.order._id;
         toast.success('Order placed! Pay on delivery 💵');
-        navigate(`/orders/${orderId}`, { replace: true });
-        setTimeout(() => clearCart(), 100);
+        
+        // Use Promise.resolve to ensure navigation happens after state updates
+        Promise.resolve().then(() => {
+          navigate(`/orders/${orderId}`, { replace: true });
+          // Clear store state immediately, backend is already cleared
+          useCartStore.setState({ cart: null });
+        });
         return;
       }
 
@@ -88,8 +92,11 @@ function CheckoutForm({ cart, address, setAddress, grandTotal, deliveryFee, taxe
         setIsOrdered(true);
         const orderId = confirmed.order._id;
         toast.success('Payment successful! 🎉');
-        navigate(`/orders/${orderId}`, { replace: true });
-        setTimeout(() => clearCart(), 100);
+
+        Promise.resolve().then(() => {
+          navigate(`/orders/${orderId}`, { replace: true });
+          useCartStore.setState({ cart: null });
+        });
       }
     } catch (err) {
       toast.error(err.message || 'Payment failed');

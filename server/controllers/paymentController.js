@@ -57,11 +57,14 @@ exports.createPaymentIntent = async (req, res, next) => {
       order.statusHistory.push({ status: 'PLACED', note: 'Cash on delivery order placed' });
       await order.save();
 
-      await Cart.deleteOne({ user: req.user._id });
+      // Ensure we clear the specific cart for this user
+      await Cart.findOneAndDelete({ user: req.user._id });
 
       const io = getIO();
-      io.to(`restaurant_${cart.restaurant}`).emit('ORDER_CREATED', { order });
-      io.to(`user_${req.user._id}`).emit('ORDER_CREATED', { order });
+      if (io) {
+        io.to(`restaurant_${cart.restaurant}`).emit('ORDER_CREATED', { order });
+        io.to(`user_${req.user._id}`).emit('ORDER_CREATED', { order });
+      }
 
       return res.status(201).json({ order, payment, paymentMethod: 'cod' });
     }
@@ -130,11 +133,13 @@ exports.confirmPayment = async (req, res, next) => {
       await order.save();
 
       // Clear cart
-      await Cart.deleteOne({ user: req.user._id });
+      await Cart.findOneAndDelete({ user: req.user._id });
 
       const io = getIO();
-      io.to(`restaurant_${order.restaurant}`).emit('ORDER_CREATED', { order });
-      io.to(`user_${req.user._id}`).emit('ORDER_CREATED', { order });
+      if (io) {
+        io.to(`restaurant_${order.restaurant}`).emit('ORDER_CREATED', { order });
+        io.to(`user_${req.user._id}`).emit('ORDER_CREATED', { order });
+      }
 
       return res.json({ success: true, order, payment });
     }
