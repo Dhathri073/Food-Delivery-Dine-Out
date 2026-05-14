@@ -1,39 +1,98 @@
 const Restaurant = require('../models/Restaurant');
 
+/**
+ * Get nearby restaurants based on user coordinates
+ * Uses geospatial queries with MongoDB 2dsphere index
+ * Returns: restaurants sorted by distance (nearest first)
+ */
 exports.getNearby = async (req, res, next) => {
   try {
-    const { lat, lng, radius = 10000, limit = 20, cuisine } = req.query;
-    if (!lat || !lng) return res.status(400).json({ message: 'lat and lng are required' });
+    const { lat, lng, radius = 5000, limit = 20, cuisine } = req.query;
+    
+    // Validate required parameters
+    if (!lat || !lng) {
+      return res.status(400).json({ 
+        message: 'Latitude and longitude are required' 
+      });
+    }
+
+    // Validate coordinates
+    const latNum = parseFloat(lat);
+    const lngNum = parseFloat(lng);
+    const radiusNum = parseInt(radius);
+    const limitNum = parseInt(limit);
+
+    if (isNaN(latNum) || isNaN(lngNum) || latNum < -90 || latNum > 90 || lngNum < -180 || lngNum > 180) {
+      return res.status(400).json({ 
+        message: 'Invalid latitude/longitude values' 
+      });
+    }
 
     const query = { isOpen: true };
+    
+    // Add cuisine filter if provided
     if (cuisine && cuisine.trim()) {
       query.cuisine = { $in: [cuisine] };
     }
 
+    // Use $geoNear aggregation for accurate distance calculation
     const restaurants = await Restaurant.aggregate([
       {
         $geoNear: {
-          near: { type: 'Point', coordinates: [parseFloat(lng), parseFloat(lat)] },
-          distanceField: 'distance',
-          maxDistance: parseInt(radius),
-          spherical: true,
+          near: { 
+            type: 'Point', 
+            coordinates: [lngNum, latNum] // GeoJSON format: [longitude, latitude]
+          },
+          distanceField: 'distance', // Distance in meters
+          maxDistance: radiusNum, // Max distance in meters
+          spherical: true, // Use spherical geometry (Earth is round)
           query: query
         }
       },
-      { $sort: { distance: 1, rating: -1 } },
-      { $limit: parseInt(limit) },
+      { 
+        $sort: { 
+          distance: 1,    // Sort by distance (nearest first)
+          rating: -1      // Then by rating (highest first)
+        } 
+      },
+      { 
+        $limit: limitNum 
+      },
       {
         $project: {
-          name: 1, description: 1, cuisine: 1, image: 1,
-          rating: 1, ratingCount: 1, deliveryTime: 1,
-          deliveryFee: 1, minOrder: 1, address: 1, isOpen: 1,
-          distance: { $round: ['$distance', 0] }
+          _id: 1,
+          name: 1, 
+          description: 1, 
+          cuisine: 1, 
+          image: 1,
+          rating: 1, 
+          ratingCount: 1, 
+          deliveryTime: 1,
+          deliveryFee: 1, 
+          minOrder: 1, 
+          address: 1, 
+          isOpen: 1,
+          phone: 1,
+          location: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          distance: { $round: ['$distance', 0] } // Round to nearest meter
         }
       }
     ]);
 
-    res.json({ restaurants, count: restaurants.length });
-  } catch (err) { next(err); }
+    res.json({ 
+      restaurants, 
+      count: restaurants.length,
+      meta: {
+        center: { lat: latNum, lng: lngNum },
+        radius: radiusNum,
+        accuracy: 'meters'
+      }
+    });
+  } catch (err) { 
+    next(err); 
+  }
 };
 
 exports.getAll = async (req, res, next) => {

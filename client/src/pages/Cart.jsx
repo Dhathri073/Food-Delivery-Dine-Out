@@ -1,10 +1,23 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useCartStore from '../store/cartStore';
 import Button from '../components/Button';
 
 export default function Cart() {
-  const { cart, updateItem, clearCart } = useCartStore();
+  const { cart, updateItem, clearCart, fetchCart, isLoading } = useCartStore();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    fetchCart();
+  }, [fetchCart]);
+
+  if (isLoading && !cart) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+      </div>
+    );
+  }
 
   if (!cart || cart.items?.length === 0) {
     return (
@@ -26,8 +39,9 @@ export default function Cart() {
   };
 
   const deliveryFee = 2.99;
-  const taxes = cart.totalAmount * 0.05;
-  const grandTotal = cart.totalAmount + deliveryFee + taxes;
+  const itemTotal = cart?.totalAmount || 0;
+  const taxes = itemTotal * 0.05;
+  const grandTotal = itemTotal + deliveryFee + taxes;
 
   return (
     <div className="bg-gray-50/50 min-h-screen">
@@ -59,7 +73,7 @@ export default function Cart() {
                   
                   <div className="flex-1 min-w-0">
                     <h4 className="font-bold text-gray-900 truncate">{item.name}</h4>
-                    <p className="text-orange-600 font-bold mt-1">${item.price.toFixed(2)}</p>
+                    <p className="text-orange-600 font-bold mt-1">${(item.price || 0).toFixed(2)}</p>
                   </div>
 
                   <div className="flex flex-col items-end gap-3">
@@ -78,7 +92,7 @@ export default function Cart() {
                         +
                       </button>
                     </div>
-                    <p className="font-black text-gray-900">${(item.price * item.quantity).toFixed(2)}</p>
+                    <p className="font-black text-gray-900">${((item.price || 0) * item.quantity).toFixed(2)}</p>
                   </div>
                 </div>
               ))}
@@ -100,7 +114,7 @@ export default function Cart() {
               <div className="space-y-4 mb-8">
                 <div className="flex justify-between text-gray-500 font-medium">
                   <span>Item Total</span>
-                  <span>${cart.totalAmount?.toFixed(2)}</span>
+                  <span>${itemTotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-gray-500 font-medium">
                   <span>Delivery Fee</span>
@@ -149,7 +163,6 @@ export default function Cart() {
           </div>
           <Button 
             onClick={handleOrder} 
-            loading={isOrdering} 
             className="flex-1"
           >
             Proceed to Checkout →

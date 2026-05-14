@@ -92,17 +92,13 @@ export default function RestaurantDetail() {
               </div>
 
               {/* Menu List */}
-            <div className="lg:col-span-2">
-              <div className="space-y-6">
-                {isLoading ? (
-                  Array(4).fill(0).map((_, i) => <MenuCardSkeleton key={i} />)
-                ) : filtered.length > 0 ? (
+              <div className="space-y-6 mb-12">
+                {filtered.length > 0 ? (
                   filtered.map(item => <MenuCard key={item._id} item={item} restaurantId={id} />)
                 ) : (
                   <div className="text-center py-12 text-gray-400 font-medium">No items found in this category.</div>
                 )}
               </div>
-            </div>
 
             {/* Reviews Section */}
             <div className="bg-white rounded-[32px] shadow-2xl shadow-gray-200/50 p-6 sm:p-10 border border-gray-100">

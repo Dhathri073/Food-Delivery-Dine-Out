@@ -2,65 +2,97 @@
 import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import api from '../lib/api';
+import { requestLocation, getCachedLocation } from '../lib/geolocation';
 import Button from '../components/Button';
 import RestaurantCard from '../components/RestaurantCard';
 import { RestaurantCardSkeleton } from '../components/Skeleton';
+import useAuthStore from '../store/authStore';
 
 export default function RestaurantList() {
+  const { user } = useAuthStore();
   const [searchParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [coords, setCoords] = useState(null);
   const [locationStatus, setLocationStatus] = useState('idle');
+  const [locationAccuracy, setLocationAccuracy] = useState(null);
 
   const cuisineFilter = searchParams.get('cuisine');
   const nearParam = searchParams.get('near');
   const isNearSearch = nearParam === '1' || nearParam === 'true';
+  const profileCoords = user?.currentLocation?.coordinates?.length === 2
+    ? { lat: user.currentLocation.coordinates[1], lng: user.currentLocation.coordinates[0] }
+    : null;
 
   useEffect(() => {
+    if (!isNearSearch) {
+      setCoords(null);
+      setLocationStatus('idle');
+      setLocationAccuracy(null);
+      return;
+    }
+
     if (!navigator.geolocation) {
+      if (profileCoords) {
+        setCoords(profileCoords);
+        setLocationStatus('profile');
+        return;
+      }
       setCoords(null);
       setLocationStatus('denied');
       return;
     }
 
-    if (!isNearSearch) {
-      setCoords(null);
-      setLocationStatus('denied');
+    // Try cached location first
+    const cached = getCachedLocation();
+    if (cached) {
+      setCoords(cached);
+      setLocationAccuracy(cached.accuracy);
+      setLocationStatus('granted');
       return;
     }
 
     setLocationStatus('requesting');
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+    requestLocation(8000)
+      .then((location) => {
+        setCoords({ lat: location.lat, lng: location.lng });
+        setLocationAccuracy(location.accuracy);
         setLocationStatus('granted');
-      },
-      () => {
+      })
+      .catch(() => {
+        if (profileCoords) {
+          setCoords(profileCoords);
+          setLocationStatus('profile');
+          return;
+        }
         setCoords(null);
         setLocationStatus('denied');
-      },
-      { timeout: 8000 }
-    );
-  }, [isNearSearch]);
+      });
+  }, [isNearSearch, profileCoords]);
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['restaurants', search, coords, cuisineFilter, isNearSearch],
     queryFn: async () => {
       const cuisineParam = encodeURIComponent(cuisineFilter || '');
-      if (coords) {
-        const nearby = await api.get(
-          `/restaurants/nearby?lat=${coords.lat}&lng=${coords.lng}&radius=20000${cuisineParam ? `&cuisine=${cuisineParam}` : ''}`
-        );
-        if (nearby.restaurants.length > 0) {
-          return { ...nearby, isNearby: true };
+      
+      // If nearby search is requested and we have coordinates, fetch nearby first
+      if (coords && isNearSearch) {
+        try {
+          const nearby = await api.get(
+            `/restaurants/nearby?lat=${coords.lat}&lng=${coords.lng}&radius=20000${cuisineParam ? `&cuisine=${cuisineParam}` : ''}`
+          );
+          if (nearby.restaurants.length > 0) {
+            return { ...nearby, isNearby: true };
+          }
+        } catch (err) {
+          console.warn('Nearby fetch failed, falling back to all restaurants');
         }
-        const fallback = await api.get(`/restaurants?cuisine=${cuisineParam}`);
-        return { ...fallback, isNearby: false };
       }
 
-      return api.get(`/restaurants?cuisine=${cuisineParam}&search=${encodeURIComponent(search)}`);
+      // Default: fetch all restaurants
+      return api.get(`/restaurants?cuisine=${cuisineParam}&search=${encodeURIComponent(search)}&limit=20`);
     },
-    enabled: !isNearSearch || locationStatus !== 'requesting'
+    enabled: !isNearSearch || locationStatus !== 'requesting',
+    staleTime: 5 * 60 * 1000 // 5 minutes
   });
 
   const handleRetryLocation = () => {
@@ -94,16 +126,25 @@ export default function RestaurantList() {
               {cuisineFilter ? `Discover the best ${cuisineFilter.toLowerCase()} restaurants near you` : 'Discover the best food near you'}
             </p>
           </div>
-          {locationStatus === 'granted' && coords && (
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-2xl text-sm font-bold border border-green-100">
-              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-              <span>
-                {showFallbackNearby
-                  ? 'No nearby restaurants found within 20km. Showing all matching restaurants instead.'
-                  : 'Showing nearby restaurants.'}
-              </span>
-            </div>
-          )}
+          <div className="flex gap-3 flex-wrap justify-end">
+            {(locationStatus === 'granted' || locationStatus === 'profile') && coords && (
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-2xl text-sm font-bold border border-green-100">
+                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                <span>
+                  {locationStatus === 'profile'
+                    ? 'Using saved location'
+                    : showFallbackNearby
+                    ? 'Showing all restaurants'
+                    : `Nearby${locationAccuracy ? ` (±${locationAccuracy}m)` : ''}`}
+                </span>
+              </div>
+            )}
+            {(!coords || locationStatus !== 'granted') && (
+              <Button onClick={handleRetryLocation} variant="primary" size="sm" className="flex items-center gap-2">
+                <span>📍</span> Use My Location
+              </Button>
+            )}
+          </div>
         </div>
 
         {locationStatus === 'requesting' && (

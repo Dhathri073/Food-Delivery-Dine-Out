@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
 import {
@@ -28,7 +28,7 @@ const CARD_STYLE = {
 };
 
 // ─── Inner form (needs Stripe context) ───────────────────────────────────────
-function CheckoutForm({ cart, address, setAddress, grandTotal, deliveryFee, taxes }) {
+function CheckoutForm({ cart, address, setAddress, grandTotal, deliveryFee, taxes, setIsOrdered }) {
   const stripe = useStripe();
   const elements = useElements();
   const navigate = useNavigate();
@@ -56,9 +56,12 @@ function CheckoutForm({ cart, address, setAddress, grandTotal, deliveryFee, taxe
 
       // ── COD: done ──────────────────────────────────────────────────────
       if (paymentMethod === 'cod') {
-        clearCart();
+        setIsOrdered(true);
+        // Navigate first, then clear cart to avoid race condition
+        const orderId = data.order._id;
         toast.success('Order placed! Pay on delivery 💵');
-        navigate(`/orders/${data.order._id}`);
+        navigate(`/orders/${orderId}`, { replace: true });
+        setTimeout(() => clearCart(), 100);
         return;
       }
 
@@ -82,9 +85,11 @@ function CheckoutForm({ cart, address, setAddress, grandTotal, deliveryFee, taxe
         const confirmed = await api.post('/payment/confirm', {
           paymentIntentId: paymentIntent.id
         });
-        clearCart();
+        setIsOrdered(true);
+        const orderId = confirmed.order._id;
         toast.success('Payment successful! 🎉');
-        navigate(`/orders/${confirmed.order._id}`);
+        navigate(`/orders/${orderId}`, { replace: true });
+        setTimeout(() => clearCart(), 100);
       }
     } catch (err) {
       toast.error(err.message || 'Payment failed');
@@ -222,15 +227,21 @@ export default function Checkout() {
   const { cart } = useCartStore();
   const navigate = useNavigate();
   const [address, setAddress] = useState('');
+  const [isOrdered, setIsOrdered] = useState(false);
 
-  if (!cart || cart.items?.length === 0) {
-    navigate('/cart');
-    return null;
-  }
+  // Use useEffect for redirecting to avoid render-time navigation
+  useEffect(() => {
+    if (!isOrdered && (!cart || cart.items?.length === 0)) {
+      navigate('/cart');
+    }
+  }, [cart, isOrdered, navigate]);
+
+  if (!cart && !isOrdered) return null;
 
   const deliveryFee = 2.99;
-  const taxes = parseFloat((cart.totalAmount * 0.05).toFixed(2));
-  const grandTotal = parseFloat((cart.totalAmount + deliveryFee + taxes).toFixed(2));
+  const itemTotal = cart?.totalAmount || 0;
+  const taxes = parseFloat((itemTotal * 0.05).toFixed(2));
+  const grandTotal = parseFloat((itemTotal + deliveryFee + taxes).toFixed(2));
 
   return (
     <div className="bg-gray-50 min-h-screen py-8">
@@ -253,6 +264,7 @@ export default function Checkout() {
                 grandTotal={grandTotal}
                 deliveryFee={deliveryFee}
                 taxes={taxes}
+                setIsOrdered={setIsOrdered}
               />
             </Elements>
           </div>
@@ -281,7 +293,7 @@ export default function Checkout() {
 
               <div className="border-t border-dashed border-gray-200 pt-4 space-y-2">
                 <div className="flex justify-between text-sm text-gray-500">
-                  <span>Subtotal</span><span>${cart.totalAmount?.toFixed(2)}</span>
+                  <span>Subtotal</span><span>${itemTotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm text-gray-500">
                   <span>Delivery Fee</span><span>${deliveryFee.toFixed(2)}</span>

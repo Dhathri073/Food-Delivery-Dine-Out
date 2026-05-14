@@ -116,11 +116,13 @@ function ReviewModal({ orderId, onClose, onSubmit, isOpen }) {
 export default function OrderDetail() {
   const { id } = useParams();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [showReview, setShowReview] = useState(false);
 
-  const { data, refetch } = useQuery({
+  const { data, refetch, isLoading, error } = useQuery({
     queryKey: ['order', id],
-    queryFn: () => api.get(`/orders/${id}`)
+    queryFn: () => api.get(`/orders/${id}`),
+    retry: 1
   });
 
   useEffect(() => {
@@ -141,8 +143,7 @@ export default function OrderDetail() {
     };
   }, [id, refetch]);
 
-  const order = data?.order;
-  if (!order) {
+  if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-32">
         <div className="text-6xl animate-bounce mb-4">🍔</div>
@@ -151,6 +152,20 @@ export default function OrderDetail() {
     );
   }
 
+  if (error || !data?.order) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-24 text-center">
+        <div className="text-6xl mb-6">🏜️</div>
+        <h2 className="text-3xl font-black text-gray-900 mb-3">Order Not Found</h2>
+        <p className="text-gray-500 text-lg mb-10">{error?.message || "We couldn't find the order you're looking for."}</p>
+        <Button onClick={() => navigate('/orders')} variant="primary" size="lg">
+          View My Orders
+        </Button>
+      </div>
+    );
+  }
+
+  const order = data.order;
   const currentStepIndex = STEPS.findIndex(s => s.status === order.status);
 
   return (

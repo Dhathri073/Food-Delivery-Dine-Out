@@ -92,7 +92,7 @@ export default function Orders() {
                 </div>
               </div>
               <div className="flex flex-col items-end gap-2 w-full sm:w-auto border-t sm:border-t-0 pt-4 sm:pt-0">
-                <p className="text-2xl font-black text-gray-900">${order.totalAmount?.toFixed(2)}</p>
+                <p className="text-2xl font-black text-gray-900">${(order.grandTotal || order.totalAmount || 0).toFixed(2)}</p>
                 <button className="text-orange-500 font-black text-xs uppercase tracking-widest flex items-center gap-1 group-hover:translate-x-1 transition-transform">
                   View Details <span>→</span>
                 </button>

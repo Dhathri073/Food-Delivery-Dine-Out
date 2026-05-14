@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { formatDistance } from '../lib/geolocation';
 
 export default function RestaurantCard({ r }) {
   const emoji = r.cuisine?.[0] === 'Italian' ? '🍕' : 
@@ -42,7 +43,7 @@ export default function RestaurantCard({ r }) {
             </span>
             {r.distance && (
               <span className="flex items-center gap-1.5 py-1 px-2.5 bg-orange-50 rounded-lg text-orange-600">
-                <span className="text-sm">📍</span> {(r.distance / 1000).toFixed(1)} KM
+                <span className="text-sm">📍</span> {formatDistance(r.distance)}
               </span>
             )}
           </div>
