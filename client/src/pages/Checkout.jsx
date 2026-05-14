@@ -47,25 +47,30 @@ function CheckoutForm({ cart, address, setAddress, grandTotal, deliveryFee, taxe
     setCardError('');
 
     try {
+      console.log('Starting order placement...', { paymentMethod, address });
       // Create order + payment intent on backend
       const data = await api.post('/payment/create-intent', {
         deliveryAddress: address,
         deliveryLocation: { type: 'Point', coordinates: [0, 0] },
         paymentMethod
       });
+      console.log('Order intent created:', data);
 
       // ── COD: done ──────────────────────────────────────────────────────
       if (paymentMethod === 'cod') {
+        const orderId = data.order?._id;
+        if (!orderId) throw new Error('Order ID missing from server response');
+        
         setIsOrdered(true);
-        const orderId = data.order._id;
         toast.success('Order placed! Pay on delivery 💵');
         
-        // Use Promise.resolve to ensure navigation happens after state updates
-        Promise.resolve().then(() => {
+        // Clear local store immediately
+        useCartStore.setState({ cart: null });
+        
+        // Use a slight delay to ensure the state update is processed
+        setTimeout(() => {
           navigate(`/orders/${orderId}`, { replace: true });
-          // Clear store state immediately, backend is already cleared
-          useCartStore.setState({ cart: null });
-        });
+        }, 50);
         return;
       }
 
@@ -73,11 +78,13 @@ function CheckoutForm({ cart, address, setAddress, grandTotal, deliveryFee, taxe
       const { clientSecret } = data;
       const cardNumber = elements.getElement(CardNumberElement);
 
+      console.log('Confirming card payment...');
       const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
         payment_method: { card: cardNumber }
       });
 
       if (error) {
+        console.error('Stripe error:', error);
         setCardError(error.message);
         toast.error(error.message);
         setIsProcessing(false);
@@ -85,20 +92,25 @@ function CheckoutForm({ cart, address, setAddress, grandTotal, deliveryFee, taxe
       }
 
       if (paymentIntent.status === 'succeeded') {
+        console.log('Payment succeeded, confirming on backend...');
         // Tell backend to confirm
         const confirmed = await api.post('/payment/confirm', {
           paymentIntentId: paymentIntent.id
         });
+        
+        const orderId = confirmed.order?._id;
+        if (!orderId) throw new Error('Order ID missing after confirmation');
+
         setIsOrdered(true);
-        const orderId = confirmed.order._id;
         toast.success('Payment successful! 🎉');
 
-        Promise.resolve().then(() => {
+        useCartStore.setState({ cart: null });
+        setTimeout(() => {
           navigate(`/orders/${orderId}`, { replace: true });
-          useCartStore.setState({ cart: null });
-        });
+        }, 50);
       }
     } catch (err) {
+      console.error('Checkout error:', err);
       toast.error(err.message || 'Payment failed');
     } finally {
       setIsProcessing(false);
@@ -245,6 +257,8 @@ export default function Checkout() {
 
   if (!cart && !isOrdered) return null;
 
+  const restaurantName = cart?.restaurantName || 'Restaurant';
+  const cartItems = cart?.items || [];
   const deliveryFee = 2.99;
   const itemTotal = cart?.totalAmount || 0;
   const taxes = parseFloat((itemTotal * 0.05).toFixed(2));
@@ -280,10 +294,10 @@ export default function Checkout() {
           <div className="lg:col-span-2">
             <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 sticky top-24">
               <h2 className="text-xl font-bold text-gray-900 mb-4">Order Summary</h2>
-              <p className="text-sm text-gray-500 mb-4">From {cart.restaurantName}</p>
+              <p className="text-sm text-gray-500 mb-4">From {restaurantName}</p>
 
               <div className="space-y-3 mb-6 max-h-52 overflow-y-auto pr-1">
-                {cart.items?.map(item => (
+                {cartItems.map(item => (
                   <div key={item.menuItemId} className="flex justify-between items-center text-sm">
                     <div className="flex items-center gap-2">
                       <span className="w-6 h-6 bg-orange-100 rounded-full flex items-center justify-center text-xs font-bold text-orange-600">
